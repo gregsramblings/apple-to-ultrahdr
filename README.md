@@ -18,6 +18,24 @@ each-image's-own-headroom render).
 
 The output is an ordinary `.jpg`: it shows a normal SDR image everywhere, and the HDR highlights light up on an HDR display in a supporting browser.
 
+## Why I built this
+
+I'd been looking for a reliable way to turn the `.heic`/`.heif` photos off my
+iPhone into HDR JPEGs that actually use the HDR in my phone and my laptop — and
+that I could just drop into a web gallery. Like most modern phones, mine captures
+a lot more dynamic range than a plain 8-bit JPEG can hold. You really see it in
+night shots: street lights, lit windows, and signs that a normal JPEG flattens
+into dull patches of white, but that should be *glowing*.
+
+The thing that makes that survive on the web is the **gain map**. The file this
+produces is an ordinary `.jpg` — serve it from any gallery, no special format or
+hosting. On an SDR screen, or an older browser, you just see the normal 8-bit
+photo, so nothing ever breaks. But on an HDR-capable display in a browser that
+understands gain maps (Chrome and Safari), the browser reads the extra layer
+baked into the file and drives the highlights *past* normal white, up to whatever
+that screen can do. Same JPG, one file: it looks right on an old laptop, and the
+street lights actually come alive on my phone and my HDR display.
+
 ## How it works
 
 | Input | What happens |
