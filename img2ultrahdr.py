@@ -6,11 +6,12 @@ img2ultrahdr.py — convert an Apple HDR photo to ISO 21496-1 "Ultra HDR" JPEG
 Dispatches on file extension:
   .heic / .heif  ->  apple-hdr-heic decodes Apple's gain map  -> libultrahdr
   .dng           ->  rawpy/LibRaw recovers blown highlights    -> libultrahdr
+  .jpg / .jpeg   ->  already web-ready; report gain-map status, pass through unchanged
 
-Both paths converge on: SDR base + ISO gain map + metadata -> ultrahdr_app.
+The HEIC/DNG paths converge on: SDR base + ISO gain map + metadata -> ultrahdr_app.
 
 Usage:
-  img2ultrahdr.py <in.heic|in.dng> <out.jpg> [options]
+  img2ultrahdr.py <in.heic|in.dng|in.jpg> <out.jpg> [options]
 
 Brightness (both):
   --max-headroom M     ceiling as a linear multiplier of SDR white (default: captured/recovered)
@@ -25,7 +26,7 @@ RAW only (.dng):
   --max-recover M      cap on headroom recovered from raw highlights (higher = more dramatic)
   --boost-floor F      SDR luminance below which nothing is boosted (lower = lift more of the scene)
 """
-import argparse, os, subprocess, tempfile, warnings
+import argparse, os, shutil, subprocess, tempfile, warnings
 warnings.filterwarnings("ignore")
 import numpy as np
 import cv2
@@ -120,6 +121,31 @@ def prepare_dng(path, args):
     return prev.astype(np.float32), iso.astype(np.float32), captured
 
 
+# ---------------------------------------------------------------- JPEG path ---
+def jpeg_has_gainmap(path):
+    """True if the JPEG already carries a gain map. exiftool surfaces one of:
+      - the ISO 21496-1 URN `urn:iso:std:iso:ts:21496:-1` (what libultrahdr and this
+        tool emit), in an APP2 marker;
+      - the Adobe/Google `hdrgm` XMP namespace, or a GContainer directory item with a
+        `GainMap` semantic (older Ultra HDR / Lightroom HDR).
+    -ee also reaches a gain map carried as the secondary MPF image."""
+    out = subprocess.run(["exiftool", "-ee", "-G1", "-s", "-a", path],
+                         capture_output=True, text=True, errors="ignore").stdout.lower()
+    return any(tok in out for tok in ("21496", "hdrgm", "gainmap"))
+
+
+def handle_jpeg(args):
+    """A JPEG is already web-ready, so we never re-encode it: report whether it
+    carries a gain map and pass the file through unchanged."""
+    name = os.path.basename(args.input)
+    if os.path.abspath(args.input) != os.path.abspath(args.output):
+        shutil.copyfile(args.input, args.output)
+    if jpeg_has_gainmap(args.input):
+        print(f"{name} [JPEG]: already has a gain map — kept as-is -> {args.output}")
+    else:
+        print(f"{name} [JPEG]: not HDR, contains no gain map — kept as-is -> {args.output}")
+
+
 # -------------------------------------------------------------- shared encode -
 def encode(sdr_rgb, iso, captured, args):
     from PIL import Image
@@ -169,9 +195,12 @@ def main():
     args = ap.parse_args()
 
     ext = os.path.splitext(args.input)[1].lower()
+    if ext in (".jpg", ".jpeg"):
+        handle_jpeg(args)
+        return
     prepare = PREPARE.get(ext)
     if prepare is None:
-        raise SystemExit(f"unsupported input '{ext}' (expected .heic / .heif / .dng)")
+        raise SystemExit(f"unsupported input '{ext}' (expected .heic / .heif / .dng / .jpg)")
 
     sdr, iso, captured = prepare(args.input, args)
     max_boost, cap_max, w, h = encode(sdr, iso, captured, args)

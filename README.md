@@ -24,6 +24,7 @@ The output is an ordinary `.jpg`: it shows a normal SDR image everywhere, and th
 | --- | --- |
 | `.heic` / `.heif` | Reads Apple's gain map (`apple-hdr-heic` → libheif) and re-encodes it into the ISO 21496-1 log model. |
 | `.dng` (ProRAW) | Develops the raw (`rawpy` → LibRaw), keeps Apple's embedded preview as the SDR base, and **recovers the blown highlights from the raw sensor data** into a gain map. |
+| `.jpg` / `.jpeg` | Already web-ready — **not re-encoded**. Reports whether it carries a gain map (ISO 21496-1, or the Adobe/Google `hdrgm` format) and passes the file through unchanged. |
 
 Both paths converge on **`libultrahdr`** (Google's reference encoder), which packages the SDR base + gain map + Display-P3 ICC into a single ISO 21496-1 Ultra HDR JPEG.
 
@@ -51,7 +52,7 @@ pip install -r requirements.txt
 ## Usage
 
 ```bash
-python img2ultrahdr.py <in.heic|in.heif|in.dng> <out.jpg> [options]
+python img2ultrahdr.py <in.heic|in.heif|in.dng|in.jpg> <out.jpg> [options]
 ```
 
 Examples:
@@ -68,6 +69,9 @@ python img2ultrahdr.py IMG_1234.HEIC out.jpg --peak-nits 0
 
 # downscale for the web + a lower ceiling capped near a phone's peak
 python img2ultrahdr.py IMG_1234.HEIC out.jpg --maxdim 2400 --peak-nits 1600
+
+# JPEG in: not converted — reports whether it has a gain map, copies it through unchanged
+python img2ultrahdr.py photo.jpg out.jpg
 ```
 
 ### Options
@@ -101,6 +105,7 @@ python img2ultrahdr.py IMG_1234.HEIC out.jpg --maxdim 2400 --peak-nits 1600
 - **Viewing:** the gain map only shows as HDR on an HDR-capable display in **Chrome or Safari** (and Preview/Photos on Apple). On an SDR screen you get the SDR base — that's the built-in fallback.
 - **ProRAW is a prototype.** The highlight recovery is tuned with sensible defaults; `--max-recover` / `--boost-floor` let you adjust per scene.
 - **Brightness ceiling vs the display:** the default `--peak-nits 4000` authors a 4000-nit ceiling, and because `hdrCapacityMax` defaults to *match* the ceiling, the brightest highlight renders at **each display's own peak** — ~1600 on an iPhone 17 Pro Max, ~4000 on a 4000-nit XDR/TV, less on a laptop — with no clipping anywhere. Highlights blow out only if you force `--display-headroom` *below* the ceiling (e.g. `--display-headroom 2`), which pushes the full boost onto panels that can't show it. Use `--peak-nits 0` (faithful) if you'd rather each display show the photo's true captured brightness.
+- **JPEG passthrough:** a `.jpg` / `.jpeg` input is never re-encoded — JPEG is already a web HDR container. The tool reports whether the file carries a gain map and copies it to the output path **byte-for-byte unchanged** (gain map preserved). Detection uses `exiftool`, looking for the ISO 21496-1 URN or the Adobe/Google `hdrgm` gain-map metadata. If input and output are the same path, the file is left in place.
 - Lazy imports: the HEIC path needs `apple-hdr-heic`, the DNG path needs `rawpy`.
 
 ## License
