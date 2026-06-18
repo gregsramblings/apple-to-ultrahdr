@@ -110,4 +110,9 @@ python img2ultrahdr.py photo.jpg out.jpg
 
 ## License
 
-Not yet specified — private use.
+[MIT](LICENSE) © 2026 Greg Wilson.
+
+This covers the code in this repository. It runs alongside separately-installed
+tools and libraries under their own licenses — notably `libultrahdr` (Apache 2.0)
+and `exiftool` (Artistic/GPL) as external binaries, and `apple-hdr-heic` / `rawpy`
+(both MIT) as Python dependencies.
