@@ -1,0 +1,13 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Test inputs / outputs (the .icc profile is intentionally tracked)
+*.jpg
+*.jpeg
+*.heic
+*.heif
+*.dng
+
+# OS
+.DS_Store

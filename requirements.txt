@@ -1,0 +1,8 @@
+# Python dependencies. The HEIC path needs apple-hdr-heic; the DNG path needs
+# rawpy. Both are lazy-imported, so you can drop one if you only handle one format.
+apple-hdr-heic==0.1.0
+rawpy
+numpy
+opencv-python-headless
+colour-science
+pillow
