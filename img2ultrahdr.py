@@ -14,7 +14,7 @@ Usage:
 
 Brightness (both):
   --max-headroom M     ceiling as a linear multiplier of SDR white (default: captured/recovered)
-  --peak-nits N        ceiling in nits (M = N / 203; default 1600 = iPhone 17 Pro Max peak HDR; 0 = faithful)
+  --peak-nits N        ceiling in nits (M = N / 203; default 4000; with matched hdrCapacityMax each display renders to its own peak; 0 = faithful)
   --display-headroom D hdrCapacityMax: display headroom for full boost (default: match the ceiling)
 Output (both):
   --maxdim PX          downscale long edge (0 = full res)
@@ -31,9 +31,13 @@ import numpy as np
 import cv2
 
 REF_WHITE_NITS = 203.0
-# Default brightness ceiling: the iPhone 17 Pro Max peak HDR brightness. Authoring
-# above this over-drives the panel (highlights clip → blow out). 1600 / 203 ≈ 7.88x.
-DEFAULT_PEAK_NITS = 1600.0
+# Default brightness ceiling. With hdrCapacityMax matched to this ceiling (the
+# default whenever --display-headroom is omitted), the gain map drives the
+# brightest highlight to *each display's own peak*: ~1600 nits on an iPhone 17
+# Pro Max, ~4000 on a 4000-nit XDR/TV, less on a laptop — one JPG, no clipping.
+# Highlights only blow out if hdrCapacityMax is set BELOW the ceiling, which
+# forces the full boost onto under-powered panels. 4000 / 203 ≈ 19.70x.
+DEFAULT_PEAK_NITS = 4000.0
 
 
 def srgb_eotf(x):
@@ -153,7 +157,7 @@ def main():
     ap.add_argument("input"); ap.add_argument("output")
     ap.add_argument("--max-headroom", type=float, default=None)
     ap.add_argument("--peak-nits", type=float, default=DEFAULT_PEAK_NITS,
-                    help=f"ceiling in nits, M = N/203 (default {DEFAULT_PEAK_NITS:g} = iPhone 17 Pro Max peak HDR; 0 = faithful/captured)")
+                    help=f"ceiling in nits, M = N/203 (default {DEFAULT_PEAK_NITS:g}; with matched hdrCapacityMax each display renders to its own peak; 0 = faithful/captured)")
     ap.add_argument("--display-headroom", type=float, default=None)
     ap.add_argument("--max-recover", type=float, default=16.0, help="(.dng) cap on recovered headroom")
     ap.add_argument("--boost-floor", type=float, default=0.04, help="(.dng) SDR luminance below which no boost")

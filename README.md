@@ -9,9 +9,11 @@ python img2ultrahdr.py photo.heic out.jpg
 python img2ultrahdr.py photo.dng  out.jpg
 ```
 
-By default the highlights are authored to a **1600-nit** ceiling — the peak HDR
-brightness of an iPhone 17 Pro Max — so they reach the panel's maximum without
-clipping. Override with `--peak-nits` (and `--peak-nits 0` for a faithful,
+By default the highlights are authored to a **4000-nit** ceiling with
+`hdrCapacityMax` matched to it, so the gain map drives the brightest highlight to
+**each display's own peak** — ~1600 nits on an iPhone 17 Pro Max, ~4000 on a
+4000-nit XDR/TV, less on a laptop — all from the same JPG, with no clipping.
+Override with `--peak-nits` (and `--peak-nits 0` for a faithful,
 each-image's-own-headroom render).
 
 The output is an ordinary `.jpg`: it shows a normal SDR image everywhere, and the HDR highlights light up on an HDR display in a supporting browser.
@@ -55,7 +57,7 @@ python img2ultrahdr.py <in.heic|in.heif|in.dng> <out.jpg> [options]
 Examples:
 
 ```bash
-# HEIC, default 1600-nit ceiling (iPhone 17 Pro Max peak HDR)
+# HEIC, default 4000-nit ceiling (each display renders to its own peak)
 python img2ultrahdr.py IMG_1234.HEIC out.jpg
 
 # ProRAW, same default ceiling
@@ -64,8 +66,8 @@ python img2ultrahdr.py IMG_1234.DNG out.jpg
 # faithful — each image's own captured headroom (gentlest, no over-drive)
 python img2ultrahdr.py IMG_1234.HEIC out.jpg --peak-nits 0
 
-# downscale for the web + a higher ceiling for a brighter XDR/TV display
-python img2ultrahdr.py IMG_1234.HEIC out.jpg --maxdim 2400 --peak-nits 4000
+# downscale for the web + a lower ceiling capped near a phone's peak
+python img2ultrahdr.py IMG_1234.HEIC out.jpg --maxdim 2400 --peak-nits 1600
 ```
 
 ### Options
@@ -75,7 +77,7 @@ python img2ultrahdr.py IMG_1234.HEIC out.jpg --maxdim 2400 --peak-nits 4000
 | Flag | Effect |
 | --- | --- |
 | `--max-headroom M` | ceiling as a linear multiplier of SDR white (default: captured/recovered) |
-| `--peak-nits N` | ceiling in nits (`M = N / 203`); **default 1600** = iPhone 17 Pro Max peak HDR; `0` = faithful (each image's captured headroom) |
+| `--peak-nits N` | ceiling in nits (`M = N / 203`); **default 4000** (with matched `hdrCapacityMax`, each display renders to its own peak); `0` = faithful (each image's captured headroom) |
 | `--display-headroom D` | `hdrCapacityMax` — display headroom at which the full boost applies (default: match the ceiling, so dimmer displays get a proportional partial boost). Lower = punchier on more displays, but pushes lower-headroom panels toward clipping |
 
 **Output** (both):
@@ -98,7 +100,7 @@ python img2ultrahdr.py IMG_1234.HEIC out.jpg --maxdim 2400 --peak-nits 4000
 
 - **Viewing:** the gain map only shows as HDR on an HDR-capable display in **Chrome or Safari** (and Preview/Photos on Apple). On an SDR screen you get the SDR base — that's the built-in fallback.
 - **ProRAW is a prototype.** The highlight recovery is tuned with sensible defaults; `--max-recover` / `--boost-floor` let you adjust per scene.
-- **Brightness ceiling vs the display:** the default `--peak-nits 1600` targets the iPhone 17 Pro Max's peak HDR brightness, so the brightest highlight lands at the panel's maximum without clipping. Raising it (e.g. `--peak-nits 4000`) authors a higher ceiling for a brighter XDR/TV, but on a 1600-nit phone that over-drives the panel and blows out the highlights. Lower it, or use `--peak-nits 0` (faithful), for a gentler look.
+- **Brightness ceiling vs the display:** the default `--peak-nits 4000` authors a 4000-nit ceiling, and because `hdrCapacityMax` defaults to *match* the ceiling, the brightest highlight renders at **each display's own peak** — ~1600 on an iPhone 17 Pro Max, ~4000 on a 4000-nit XDR/TV, less on a laptop — with no clipping anywhere. Highlights blow out only if you force `--display-headroom` *below* the ceiling (e.g. `--display-headroom 2`), which pushes the full boost onto panels that can't show it. Use `--peak-nits 0` (faithful) if you'd rather each display show the photo's true captured brightness.
 - Lazy imports: the HEIC path needs `apple-hdr-heic`, the DNG path needs `rawpy`.
 
 ## License
