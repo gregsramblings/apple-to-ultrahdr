@@ -2,11 +2,15 @@
 
 Convert Apple HDR photos — **HEIC** *and* **ProRAW (DNG)** — into ISO 21496-1 **"Ultra HDR"** gain-map JPEGs that display in full HDR in **Chrome and Safari**, with **no Apple frameworks**. Runs on Linux, macOS, or Windows.
 
-One command, dispatched by file extension:
+One command, dispatched by file extension. The output name is optional — leave it
+off and the result lands next to the input as `<name>.jpg`, so you can convert a
+whole folder at once:
 
 ```bash
-python img2ultrahdr.py photo.heic out.jpg
-python img2ultrahdr.py photo.dng  out.jpg
+python img2ultrahdr.py photo.heic          # -> photo.jpg
+python img2ultrahdr.py photo.dng           # -> photo.jpg
+python img2ultrahdr.py *.heic              # convert every HEIC in the folder
+python img2ultrahdr.py photo.heic out.jpg  # or name the output explicitly
 ```
 
 By default the highlights are authored to a **4000-nit** ceiling with
@@ -58,8 +62,13 @@ Why bother: Apple's HEIC stores HDR as a proprietary gain map and ProRAW stores 
 - **exiftool** — used to read Apple's HDR metadata and extract the ProRAW preview
   - macOS: `brew install exiftool`
   - Linux: `apt install libimage-exiftool-perl`
+- **Adobe DNG Converter** *(optional — only for iPhone 17+ ProRAW)* — newer ProRAW is
+  DNG 1.7 with a JPEG-XL raw stream the bundled LibRaw can't read. If this free Adobe
+  tool is installed, such files are transcoded to a readable DNG automatically.
+  - macOS/Windows: [free download from Adobe](https://helpx.adobe.com/camera-raw/using/adobe-dng-converter.html) (auto-detected; or set `$DNG_CONVERTER` to its binary)
+  - Linux: no native build — JPEG-XL ProRAW can't be converted there yet
 
-> `rawpy` bundles LibRaw and `apple-hdr-heic` bundles libheif (via pillow-heif), so those don't need separate installs — only `ultrahdr_app` and `exiftool` are external.
+> `rawpy` bundles LibRaw and `apple-hdr-heic` bundles libheif (via pillow-heif), so those don't need separate installs — only `ultrahdr_app` and `exiftool` are external (plus Adobe DNG Converter for iPhone 17+ ProRAW).
 
 **Python** (3.9+):
 
@@ -70,26 +79,37 @@ pip install -r requirements.txt
 ## Usage
 
 ```bash
-python img2ultrahdr.py <in.heic|in.heif|in.dng|in.jpg> <out.jpg> [options]
+python img2ultrahdr.py <input...> [output.jpg] [options]
 ```
+
+One or more inputs (`.heic` / `.heif` / `.dng` to convert, `.jpg` / `.jpeg` to
+inspect). With no output, each result is written next to its input with a `.jpg`
+extension. For a **single** input you can name the output as a trailing `.jpg`
+argument or with `-o`; with multiple inputs the output name is always derived, so
+globs are never mistaken for an output target.
 
 Examples:
 
 ```bash
-# HEIC, default 4000-nit ceiling (each display renders to its own peak)
-python img2ultrahdr.py IMG_1234.HEIC out.jpg
+# HEIC -> IMG_1234.jpg, default 4000-nit ceiling (each display renders to its own peak)
+python img2ultrahdr.py IMG_1234.HEIC
 
-# ProRAW, same default ceiling
-python img2ultrahdr.py IMG_1234.DNG out.jpg
+# convert every HEIC / ProRAW in the current folder
+python img2ultrahdr.py *.heic
+python img2ultrahdr.py *.dng
+
+# name the output explicitly (single input)
+python img2ultrahdr.py IMG_1234.HEIC out.jpg
+python img2ultrahdr.py IMG_1234.HEIC -o out.jpg
 
 # faithful — each image's own captured headroom (gentlest, no over-drive)
-python img2ultrahdr.py IMG_1234.HEIC out.jpg --peak-nits 0
+python img2ultrahdr.py IMG_1234.HEIC --peak-nits 0
 
-# downscale for the web + a lower ceiling capped near a phone's peak
-python img2ultrahdr.py IMG_1234.HEIC out.jpg --maxdim 2400 --peak-nits 1600
+# downscale a whole folder for the web + a lower ceiling capped near a phone's peak
+python img2ultrahdr.py *.heic --maxdim 2400 --peak-nits 1600
 
 # JPEG in: not converted — reports whether it has a gain map, copies it through unchanged
-python img2ultrahdr.py photo.jpg out.jpg
+python img2ultrahdr.py photo.jpg
 ```
 
 ### Options
@@ -106,9 +126,10 @@ python img2ultrahdr.py photo.jpg out.jpg
 
 | Flag | Effect |
 | --- | --- |
+| `-o`, `--output PATH` | output path (single input only); default: input name with a `.jpg` extension |
 | `--maxdim PX` | downscale long edge (`0` = full resolution) |
 | `--quality Q` | SDR-base JPEG quality (default `90`) |
-| `--sdr PATH` | also write the plain SDR base JPEG |
+| `--sdr PATH` | also write the plain SDR base JPEG (single input only) |
 | `--icc PATH` | Display P3 ICC to embed (default: bundled `DisplayP3.icc`) |
 
 **ProRAW only** (`.dng`):
@@ -122,7 +143,9 @@ python img2ultrahdr.py photo.jpg out.jpg
 
 - **Viewing:** the gain map only shows as HDR on an HDR-capable display in **Chrome or Safari** (and Preview/Photos on Apple). On an SDR screen you get the SDR base — that's the built-in fallback.
 - **ProRAW is a prototype.** The highlight recovery is tuned with sensible defaults; `--max-recover` / `--boost-floor` let you adjust per scene.
+- **iPhone 17+ ProRAW (DNG 1.7 / JPEG-XL):** the raw stream uses a JPEG-XL codec the bundled LibRaw can't decode. If **Adobe DNG Converter** is installed (see Requirements), the tool transcodes such files to a readable DNG automatically and converts them normally — no extra flags. Without it, only those files fail, with a message telling you to install it; other inputs in the batch still convert.
 - **Brightness ceiling vs the display:** the default `--peak-nits 4000` authors a 4000-nit ceiling, and because `hdrCapacityMax` defaults to *match* the ceiling, the brightest highlight renders at **each display's own peak** — ~1600 on an iPhone 17 Pro Max, ~4000 on a 4000-nit XDR/TV, less on a laptop — with no clipping anywhere. Highlights blow out only if you force `--display-headroom` *below* the ceiling (e.g. `--display-headroom 2`), which pushes the full boost onto panels that can't show it. Use `--peak-nits 0` (faithful) if you'd rather each display show the photo's true captured brightness.
+- **Batch / output names:** pass as many inputs as you like (e.g. a `*.heic` glob); each output defaults to the input's name with a `.jpg` extension, written alongside it. A custom output name (a trailing `.jpg` argument, or `-o`) is only honored for a **single** input — with multiple inputs the names are always derived, so a glob is never mistaken for an output target. One bad file in a batch is reported and skipped; the rest still convert, and the command exits non-zero if any failed.
 - **JPEG passthrough:** a `.jpg` / `.jpeg` input is never re-encoded — JPEG is already a web HDR container. The tool reports whether the file carries a gain map and copies it to the output path **byte-for-byte unchanged** (gain map preserved). Detection uses `exiftool`, looking for the ISO 21496-1 URN or the Adobe/Google `hdrgm` gain-map metadata. If input and output are the same path, the file is left in place.
 - Lazy imports: the HEIC path needs `apple-hdr-heic`, the DNG path needs `rawpy`.
 

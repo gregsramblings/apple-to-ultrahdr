@@ -2,6 +2,9 @@
 __pycache__/
 *.pyc
 
+# Virtual environment
+.venv/
+
 # Test inputs / outputs (the .icc profile is intentionally tracked)
 *.jpg
 *.jpeg
