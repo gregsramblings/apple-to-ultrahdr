@@ -75,7 +75,22 @@ peak* (~1600 nits on an iPhone 17 Pro Max, ~4000 on an XDR/TV) with no clipping.
 `hdrCapacityMax` **below** the ceiling is what causes blowout on lower-headroom panels.
 `REF_WHITE_NITS = 203` (SDR reference white) converts nits↔linear multiplier.
 
-## External tools (must be on PATH)
+## TODO: port the gain-map downscale from filmroll.io (added 2026-07-02)
+
+The copy of this script vendored at `../filmroll.io/container/img2ultrahdr.py` added
+optional gain-map shrinking to `encode()` — port it back here:
+
+- `encode()` reads `gm_downscale` / `gm_quality` off the args namespace via
+  `getattr(args, "gm_downscale", 1)` / `getattr(args, "gm_quality", 94)` (defaults
+  preserve current CLI behavior) and, when `gm_downscale > 1`, stores the gain map at
+  1/N of the primary's resolution (`cv2.resize` INTER_AREA) encoded at `gm_quality`.
+- Why: the gain map is a smooth low-frequency signal, so 1/2 resolution is visually
+  lossless, spec-allowed (renderers upsample; the map's own SOF carries its dims), and
+  cuts ~25% off every output file. Verified against `ultrahdr_app` (libultrahdr
+  v1.4.0): `-m 0` accepts a smaller-than-primary gain map and the ISO 21496-1 box
+  parses identically (checked with filmroll's `_parse_iso21496`).
+- A CLI port here should surface it as `--gainmap-downscale` / `--gainmap-quality`
+  flags on the argparse namespace (the filmroll copy sets the fields programmatically).
 
 - `ultrahdr_app` (libultrahdr) — the encoder. `brew install libultrahdr`.
 - `exiftool` — reads HEIC HDR metadata, extracts the ProRAW preview, and detects JPEG
